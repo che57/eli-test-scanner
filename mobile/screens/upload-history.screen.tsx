@@ -90,7 +90,7 @@ export default function UploadHistoryScreen() {
 
       <ThemedView style={styles.container}>
         {error && (
-          <NetworkStatusBanner error={(error as any)?.message || String(error)} onDismiss={() => { }} />
+          <NetworkStatusBanner error={(error as Error)?.message || String(error)} onDismiss={() => { }} />
         )}
         {allItems.length === 0 && !isLoading ? (
           <ThemedText style={{ marginTop: 12 }}>No uploads yet.</ThemedText>

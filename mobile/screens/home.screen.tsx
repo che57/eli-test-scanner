@@ -1,15 +1,17 @@
-import { useCallback, useState, useEffect, useRef } from 'react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import { Button, Image, StyleSheet, View, Alert, Modal, TouchableOpacity, Text } from 'react-native';
 import * as ImageManipulator from 'expo-image-manipulator';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSelector } from 'react-redux';
 import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
 
 import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
+import ParallexScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useUploadPhotoMutation } from '@/store/api/testStripsApi';
 import type { RootState } from '@/store';
+import ParallaxScrollView from '@/components/parallax-scroll-view';
 
 export default function HomeScreen() {
   const [photoUri, setPhotoUri] = useState<string | null>(null);
@@ -24,12 +26,82 @@ export default function HomeScreen() {
   // Get health data from Redux state
   const { data: healthData, error: healthError } = useSelector((state: RootState) => state.health);
 
+  // Queue for failed submissions
+  const [queue, setQueue] = useState<Array<{ photoUri: string; formData: FormData; fileName: string }>>([]);
+  const QUEUE_KEY = 'offline_queue_v1';
+
   useEffect(() => {
     if (healthError) {
       const msg = (healthError as any)?.message || 'Backend unreachable';
       console.warn('Backend health error:', msg);
     }
   }, [healthError]);
+
+  // Queue management helpers
+  const loadQueue = useCallback(async () => {
+    try {
+      const raw = await AsyncStorage.getItem(QUEUE_KEY);
+      if (raw) {
+        const items = JSON.parse(raw);
+        setQueue(items);
+      }
+    } catch (e) {
+      console.error('Failed to load queue', e);
+    }
+  }, []);
+
+  const saveQueue = useCallback(async (items: typeof queue) => {
+    try {
+      await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(items));
+    } catch (e) {
+      console.error('Failed to save queue', e);
+    }
+  }, []);
+
+  const enqueueSubmission = useCallback(async (photoUri: string, formData: FormData, fileName: string) => {
+    const newItem = { photoUri, formData, fileName };
+    const updated = [...queue, newItem];
+    setQueue(updated);
+    await saveQueue(updated);
+    Alert.alert('Saved', 'Submission saved. Will retry when backend is available.');
+  }, [queue, saveQueue]);
+
+  const dequeueOne = useCallback(async () => {
+    const [, ...rest] = queue;
+    setQueue(rest);
+    await saveQueue(rest);
+    return queue[0];
+  }, [queue, saveQueue]);
+
+  // Process queue when backend becomes reachable
+  const processQueue = useCallback(async () => {
+    if (queue.length === 0 || !healthData || healthError) return;
+
+    console.log(`Processing ${queue.length} queued submissions`);
+    while (queue.length > 0) {
+      const item = queue[0];
+      try {
+        await uploadPhoto(item.formData).unwrap();
+        await dequeueOne();
+        console.log('Queued submission uploaded successfully');
+      } catch (err: any) {
+        console.warn('Retry failed, will try later', err);
+        break;
+      }
+    }
+  }, [queue, uploadPhoto, dequeueOne, healthData, healthError]);
+
+  // Load queue on mount
+  useEffect(() => {
+    loadQueue();
+  }, [loadQueue]);
+
+  // Process queue when backend becomes healthy
+  useEffect(() => {
+    if (healthData && !healthError && queue.length > 0) {
+      processQueue();
+    }
+  }, [healthData, healthError, queue.length, processQueue]);
 
   // Helper to determine alert based on upload state
   const getUploadAlert = () => {
@@ -125,13 +197,26 @@ export default function HomeScreen() {
       try {
         await uploadPhoto(formData).unwrap();
       } catch (err: any) {
-        // Upload failed, just show error
+        // Check if error is due to connection/backend unavailability
+        const errorMsg = (err as any)?.message || String(err);
+        if (
+          errorMsg.toLowerCase().includes('network') ||
+          errorMsg.toLowerCase().includes('timeout') ||
+          errorMsg.toLowerCase().includes('unreachable') ||
+          !healthData ||
+          healthError
+        ) {
+          // Backend unreachable - queue for retry
+          await enqueueSubmission(photoUri, formData, compressedName);
+          return;
+        }
+        // Other errors (validation, duplicate, etc) - rethrow
         throw err;
       }
     } catch (err: any) {
       Alert.alert('Compression error', err?.message || 'Failed to prepare image');
     }
-  }, [photoUri, uploadPhoto]);
+  }, [photoUri, uploadPhoto, enqueueSubmission, healthData, healthError]);
 
   const isSubmitDisabled = uploadLoading || !photoUri;
 
