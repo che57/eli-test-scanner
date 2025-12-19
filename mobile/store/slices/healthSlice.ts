@@ -1,0 +1,36 @@
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+
+export interface HealthResponse {
+  status: string;
+}
+
+interface HealthState {
+  data: HealthResponse | null;
+  error: any | null;
+}
+
+const initialState: HealthState = {
+  data: null,
+  error: null,
+};
+
+const healthSlice = createSlice({
+  name: 'health',
+  initialState,
+  reducers: {
+    setHealthData: (state, action: PayloadAction<HealthResponse | null>) => {
+      state.data = action.payload;
+      state.error = null;
+    },
+    setHealthError: (state, action: PayloadAction<any>) => {
+      state.error = action.payload;
+      state.data = null;
+    },
+    clearHealthError: (state) => {
+      state.error = null;
+    },
+  },
+});
+
+export const { setHealthData, setHealthError, clearHealthError } = healthSlice.actions;
+export default healthSlice.reducer;
