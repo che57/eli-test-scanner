@@ -68,6 +68,10 @@ export class TestStripsController {
       return await this.service.processUpload(file.path, file.filename, file.size, file.mimetype);
     } catch (err: any) {
       const msg = err?.message || String(err);
+      if (msg.toLowerCase().includes('qr code already exists')) {
+        // duplicate QR code
+        throw new HttpException(msg, HttpStatus.CONFLICT);
+      }
       if (msg.toLowerCase().includes('invalid image') || msg.toLowerCase().includes('dimensions')) {
         // validation error from service
         throw new HttpException(msg, HttpStatus.BAD_REQUEST);

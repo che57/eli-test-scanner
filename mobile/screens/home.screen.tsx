@@ -31,19 +31,36 @@ export default function HomeScreen() {
     }
   }, [healthError]);
 
-  useEffect(() => {
+  // Helper to determine alert based on upload state
+  const getUploadAlert = () => {
     if (uploadError) {
-      Alert.alert('Upload failed', (uploadError as any)?.message || 'Unknown error');
-    } else if (uploadData) {
-      // Check QR code status
-      if (!uploadData.qrCodeValid) {
-        Alert.alert('⚠️ No QR Code Detected', 'The uploaded image does not contain a valid QR code. Please try again with a clearer image.');
-      } else if (uploadData.isExpired) {
-        Alert.alert('⚠️ QR Code Expired', `This test strip has expired (${uploadData.expirationYear}). QR Code: ${uploadData.qrCode}`);
-      } else {
-        Alert.alert('✓ Upload Successful', `Valid QR Code detected: ${uploadData.qrCode}`);
+      const errorMsg = (uploadError as any)?.message || 'Unknown error';
+      if (errorMsg.toLowerCase().includes('qr code already exists')) {
+        return { title: '⚠️ QR Code Duplicate', message: 'This QR code has already been uploaded. Please try a different test strip.' };
       }
-      setPhotoUri(null);
+      return { title: 'Upload failed', message: errorMsg };
+    }
+
+    if (uploadData) {
+      if (!uploadData.qrCodeValid) {
+        return { title: '⚠️ No QR Code Detected', message: 'The uploaded image does not contain a valid QR code. Please try again with a clearer image.' };
+      }
+      if (uploadData.isExpired) {
+        return { title: '⚠️ QR Code Expired', message: `This test strip has expired (${uploadData.expirationYear}). QR Code: ${uploadData.qrCode}` };
+      }
+      return { title: '✓ Upload Successful', message: `Valid QR Code detected: ${uploadData.qrCode}` };
+    }
+
+    return null;
+  };
+
+  useEffect(() => {
+    const alert = getUploadAlert();
+    if (alert) {
+      Alert.alert(alert.title, alert.message);
+      if (uploadData) {
+        setPhotoUri(null);
+      }
     }
   }, [uploadData, uploadError]);
 

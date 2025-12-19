@@ -141,6 +141,14 @@ export class TestStripsService {
     // Store normalized code when valid for consistent downstream use
     const qrToStore = qrCodeValid && qrCodeNormalized ? qrCodeNormalized : qrCodeRaw;
 
+    // Check for duplicate QR code
+    if (qrToStore) {
+      const existing = await this.repository.findByQrCode(qrToStore);
+      if (existing) {
+        throw new Error(`QR code already exists (ID: ${existing.id})`);
+      }
+    }
+
     // Save to DB (mark clear error messages)
     const submission = await this.repository.create({
       qrCode: qrToStore,

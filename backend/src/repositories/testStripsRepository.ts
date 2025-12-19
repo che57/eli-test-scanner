@@ -48,6 +48,10 @@ export class TestStripsRepository {
     return this.repository.findOne({ where: { id } });
   }
 
+  async findByQrCode(qrCode: string): Promise<TestStripSubmission | null> {
+    return this.repository.findOne({ where: { qrCode } });
+  }
+
   async count(): Promise<number> {
     return this.repository.count();
   }
