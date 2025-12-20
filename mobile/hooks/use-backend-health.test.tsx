@@ -17,7 +17,7 @@ describe('useBackendHealth', () => {
     });
   });
 
-  const wrapper = ({ children }: any) => <Provider store={ store }> { children } </Provider>;
+  const wrapper = ({ children }: { children: React.ReactNode }) => <Provider store={store}> {children} </Provider>;
 
   it('should return initial loading state', () => {
     const { result } = renderHook(() => useBackendHealth(), { wrapper });

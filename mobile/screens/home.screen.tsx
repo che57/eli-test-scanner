@@ -11,6 +11,15 @@ import { ThemedView } from '@/components/themed-view';
 import { useUploadPhotoMutation } from '@/store/api/testStripsApi';
 import type { RootState } from '@/store';
 
+// Error types from backend
+enum UploadErrorType {
+  INVALID_IMAGE = 'INVALID_IMAGE',
+  IMAGE_DIMENSIONS_TOO_SMALL = 'IMAGE_DIMENSIONS_TOO_SMALL',
+  IMAGE_DIMENSIONS_TOO_LARGE = 'IMAGE_DIMENSIONS_TOO_LARGE',
+  QR_CODE_DUPLICATE = 'QR_CODE_DUPLICATE',
+  THUMBNAIL_GENERATION_FAILED = 'THUMBNAIL_GENERATION_FAILED',
+}
+
 export default function HomeScreen() {
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
@@ -26,7 +35,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (healthError) {
-      const msg = (healthError as any)?.message || 'Backend unreachable';
+      const msg = (typeof healthError === 'object' && healthError !== null && 'message' in healthError && typeof healthError.message === 'string') ? healthError.message : 'Backend unreachable';
       console.warn('Backend health error:', msg);
     }
   }, [healthError]);
@@ -34,11 +43,24 @@ export default function HomeScreen() {
   // Helper to determine alert based on upload state
   const getUploadAlert = () => {
     if (uploadError) {
-      const errorMsg = (uploadError as any)?.message || 'Unknown error';
-      if (errorMsg.toLowerCase().includes('qr code already exists')) {
-        return { title: '⚠️ QR Code Duplicate', message: 'This QR code has already been uploaded. Please try a different test strip.' };
+      const errorData = uploadError as any;
+      const errorType = errorData?.data?.errorType;
+      const errorMsg = errorData?.data?.message || (typeof uploadError === 'object' && uploadError !== null && 'message' in uploadError && typeof uploadError.message === 'string') ? uploadError.message : 'Unknown error';
+
+      switch (errorType) {
+        case UploadErrorType.QR_CODE_DUPLICATE:
+          return { title: '⚠️ QR Code Duplicate', message: 'This QR code has already been uploaded. Please try a different test strip.' };
+        case UploadErrorType.INVALID_IMAGE:
+          return { title: '❌ Invalid Image', message: errorMsg || 'The uploaded file is not a valid image.' };
+        case UploadErrorType.IMAGE_DIMENSIONS_TOO_SMALL:
+          return { title: '❌ Image Too Small', message: errorMsg || 'Image dimensions must be at least 100x100 pixels.' };
+        case UploadErrorType.IMAGE_DIMENSIONS_TOO_LARGE:
+          return { title: '❌ Image Too Large', message: errorMsg || 'Image dimensions must not exceed 10000x10000 pixels.' };
+        case UploadErrorType.THUMBNAIL_GENERATION_FAILED:
+          return { title: '⚠️ Processing Error', message: 'Failed to process image. Please try again.' };
+        default:
+          return { title: 'Upload failed', message: errorMsg };
       }
-      return { title: 'Upload failed', message: errorMsg };
     }
 
     if (uploadData) {
@@ -88,8 +110,8 @@ export default function HomeScreen() {
       if (photo && photo.path) {
         setPhotoUri(`file://${photo.path}`);
       }
-    } catch (err: any) {
-      Alert.alert('Camera error', err?.message || 'Failed to take photo');
+    } catch (err: unknown) {
+      Alert.alert('Camera error', err instanceof Error ? err.message : 'Failed to take photo');
     } finally {
       setCameraOpen(false);
     }
@@ -120,16 +142,16 @@ export default function HomeScreen() {
         uri: compressedUri,
         name: compressedName,
         type: 'image/jpeg',
-      } as any);
+      } as unknown as Blob);
 
       try {
         await uploadPhoto(formData).unwrap();
-      } catch (err: any) {
+      } catch (err: unknown) {
         // Upload failed, just show error
         throw err;
       }
-    } catch (err: any) {
-      Alert.alert('Compression error', err?.message || 'Failed to prepare image');
+    } catch (err: unknown) {
+      Alert.alert('Compression error', err instanceof Error ? err.message : 'Failed to prepare image');
     }
   }, [photoUri, uploadPhoto]);
 

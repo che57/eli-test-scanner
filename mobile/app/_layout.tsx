@@ -48,7 +48,7 @@ function HealthMonitor() {
       {showErrorBanner && healthError && (
         <View style={{ position: 'absolute', top: 100, left: 0, right: 0, zIndex: 1000 }}>
           <NetworkStatusBanner
-            error={(healthError as any)?.message || 'Backend unreachable'}
+            error={(typeof healthError === 'object' && healthError !== null && 'message' in healthError && typeof healthError.message === 'string') ? healthError.message : 'Backend unreachable'}
             onDismiss={() => setShowErrorBanner(false)}
           />
         </View>

@@ -5,6 +5,24 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { TestStripsRepository } from '../repositories/testStripsRepository';
 
+export enum UploadErrorType {
+  INVALID_IMAGE = 'INVALID_IMAGE',
+  IMAGE_DIMENSIONS_TOO_SMALL = 'IMAGE_DIMENSIONS_TOO_SMALL',
+  IMAGE_DIMENSIONS_TOO_LARGE = 'IMAGE_DIMENSIONS_TOO_LARGE',
+  QR_CODE_DUPLICATE = 'QR_CODE_DUPLICATE',
+  THUMBNAIL_GENERATION_FAILED = 'THUMBNAIL_GENERATION_FAILED',
+}
+
+export class UploadError extends Error {
+  constructor(
+    public errorType: UploadErrorType,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'UploadError';
+  }
+}
+
 export interface UploadResponse {
   id: string;
   status: string;
@@ -85,14 +103,15 @@ export class TestStripsService {
       }
 
       return { code: raw, normalized, valid, expirationYear, isExpired };
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('extractQRCode error for', imagePath, err);
-      return { code: null, normalized: null, valid: false, expirationYear: null, isExpired: false, error: err?.message || String(err) };
+      return { code: null, normalized: null, valid: false, expirationYear: null, isExpired: false, error: err instanceof Error ? err.message : String(err) };
     }
   }
 
   async processUpload(originalPath: string, filename: string, size: number, mimeType?: string): Promise<UploadResponse> {
     // Validate image can be read and get dimensions
+    console.log('Processing upload for', originalPath);
     let image: Jimp;
     let imageDimensions = '';
     try {
@@ -101,16 +120,28 @@ export class TestStripsService {
 
       // Validate minimum dimensions (e.g., at least 100x100)
       if (image.bitmap.width < 100 || image.bitmap.height < 100) {
-        throw new Error('Image dimensions too small (minimum 100x100 pixels)');
+        throw new UploadError(
+          UploadErrorType.IMAGE_DIMENSIONS_TOO_SMALL,
+          `Image dimensions too small (${imageDimensions}). Minimum 100x100 pixels required.`,
+        );
       }
 
       // Validate maximum dimensions (e.g., max 10000x10000)
       if (image.bitmap.width > 10000 || image.bitmap.height > 10000) {
-        throw new Error('Image dimensions too large (maximum 10000x10000 pixels)');
+        throw new UploadError(
+          UploadErrorType.IMAGE_DIMENSIONS_TOO_LARGE,
+          `Image dimensions too large (${imageDimensions}). Maximum 10000x10000 pixels allowed.`,
+        );
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      if (err instanceof UploadError) {
+        throw err;
+      }
       console.error('Image validation failed for', originalPath, err);
-      throw new Error(`Invalid image file: ${err?.message || String(err)}`);
+      throw new UploadError(
+        UploadErrorType.INVALID_IMAGE,
+        `Invalid image file: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
 
     // Sanitize filename and generate unique thumbnail filename to avoid traversal/collisions
@@ -127,7 +158,7 @@ export class TestStripsService {
     try {
       image.resize(200, 200).quality(80);
       await image.writeAsync(thumbnailPath);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to generate thumbnail for', originalPath, err);
       // continue — thumbnail failure shouldn't block processing of QR
     }
@@ -145,7 +176,10 @@ export class TestStripsService {
     if (qrToStore) {
       const existing = await this.repository.findByQrCode(qrToStore);
       if (existing) {
-        throw new Error(`QR code already exists (ID: ${existing.id})`);
+        throw new UploadError(
+          UploadErrorType.QR_CODE_DUPLICATE,
+          `QR code already exists (ID: ${existing.id})`,
+        );
       }
     }
 
@@ -182,7 +216,6 @@ export class TestStripsService {
     const yearMatch = qrCode.match(/^ELI-(\d{4})/);
     if (!yearMatch) return { isExpired: false, expirationYear: null };
     const expirationYear = parseInt(yearMatch[1], 10);
-    console.log('Checking expiration for QR code', yearMatch, expirationYear);
     const currentYear = new Date().getFullYear();
     return { isExpired: expirationYear < currentYear, expirationYear };
   }
@@ -191,7 +224,6 @@ export class TestStripsService {
     const skip = (page - 1) * limit;
     const results = await this.repository.findMany({ skip, take: limit });
     const submissions = results.map((row) => {
-      console.log('Mapping submission row', row.id, row.qrCode);
       const expiration = this.checkExpiration(row.qrCode);
       return {
         id: row.id,

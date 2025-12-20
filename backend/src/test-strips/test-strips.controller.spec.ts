@@ -11,7 +11,7 @@ describe('TestStripsController', () => {
       processUpload: jest.fn(),
       getSubmissions: jest.fn(),
       getSubmissionById: jest.fn(),
-    } as any;
+    } as jest.Mocked<TestStripsService>;
 
     controller = new TestStripsController(mockService);
   });
@@ -22,7 +22,7 @@ describe('TestStripsController', () => {
 
   describe('upload', () => {
     it('should throw HttpException if no file provided', async () => {
-      await expect(controller.upload(null as any)).rejects.toThrow(
+      await expect(controller.upload(null as unknown as Express.Multer.File)).rejects.toThrow(
         new HttpException('No image file provided', HttpStatus.BAD_REQUEST),
       );
     });
@@ -36,12 +36,12 @@ describe('TestStripsController', () => {
 
       const mockResponse = {
         id: '123',
-        status: 'success',
+        status: 'success' as const,
         qrCode: 'ELI-2024-ABC',
         qrCodeValid: true,
       };
 
-      mockService.processUpload.mockResolvedValue(mockResponse as any);
+      mockService.processUpload.mockResolvedValue(mockResponse);
 
       const result = await controller.upload(mockFile);
 
@@ -62,7 +62,7 @@ describe('TestStripsController', () => {
 
       const mockResponse = {
         id: 'uuid-123',
-        status: 'success',
+        status: 'success' as const,
         qrCode: 'ELI-2025-XYZ',
         qrCodeValid: true,
         isExpired: false,
@@ -70,7 +70,7 @@ describe('TestStripsController', () => {
         processedAt: '2024-12-19T00:00:00Z',
       };
 
-      mockService.processUpload.mockResolvedValue(mockResponse as any);
+      mockService.processUpload.mockResolvedValue(mockResponse);
 
       const result = await controller.upload(mockFile);
 
@@ -84,13 +84,13 @@ describe('TestStripsController', () => {
     it('should call service.getSubmissions with default pagination', async () => {
       const mockSubmissions = {
         submissions: [
-          { id: '1', qrCode: 'ELI-2024-ABC', status: 'success' },
+          { id: '1', qrCode: 'ELI-2024-ABC', status: 'success' as const, createdAt: '2024-12-19T00:00:00Z' },
         ],
         page: 1,
         limit: 10,
       };
 
-      mockService.getSubmissions.mockResolvedValue(mockSubmissions as any);
+      mockService.getSubmissions.mockResolvedValue(mockSubmissions);
 
       await controller.getList(1, 10);
 
@@ -103,14 +103,14 @@ describe('TestStripsController', () => {
           {
             id: '1',
             qrCode: 'ELI-2024-ABC',
-            status: 'success',
+            status: 'success' as const,
             createdAt: '2024-12-19T00:00:00Z',
             thumbnailUrl: '/uploads/thumbnails/1.jpg',
           },
           {
             id: '2',
-            qrCode: null,
-            status: 'error',
+            qrCode: undefined,
+            status: 'error' as const,
             createdAt: '2024-12-18T00:00:00Z',
             errorMessage: 'No QR code detected',
           },
@@ -119,7 +119,7 @@ describe('TestStripsController', () => {
         limit: 10,
       };
 
-      mockService.getSubmissions.mockResolvedValue(mockSubmissions as any);
+      mockService.getSubmissions.mockResolvedValue(mockSubmissions);
 
       const result = await controller.getList(1, 10);
 
@@ -133,7 +133,7 @@ describe('TestStripsController', () => {
         submissions: [],
         page: 5,
         limit: 25,
-      } as any);
+      });
 
       await controller.getList(5, 25);
 
@@ -156,10 +156,11 @@ describe('TestStripsController', () => {
       const mockSubmission = {
         id,
         qrCode: 'ELI-2024-ABC',
-        status: 'success',
+        status: 'success' as const,
+        createdAt: '2024-12-19T00:00:00Z',
       };
 
-      mockService.getSubmissionById.mockResolvedValue(mockSubmission as any);
+      mockService.getSubmissionById.mockResolvedValue(mockSubmission);
 
       await controller.getById(id);
 
@@ -170,14 +171,14 @@ describe('TestStripsController', () => {
       const mockSubmission = {
         id: '123',
         qrCode: 'ELI-2024-ABC',
-        status: 'success',
+        status: 'success' as const,
         createdAt: '2024-12-19T00:00:00Z',
         thumbnailUrl: '/uploads/thumbnails/123.jpg',
         isExpired: false,
         expirationYear: 2025,
       };
 
-      mockService.getSubmissionById.mockResolvedValue(mockSubmission as any);
+      mockService.getSubmissionById.mockResolvedValue(mockSubmission);
 
       const result = await controller.getById('123');
 

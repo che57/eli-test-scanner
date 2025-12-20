@@ -5,7 +5,7 @@ const originalFetch = global.fetch;
 describe('getHealth', () => {
   afterEach(() => {
     // Restore original fetch after each test
-    global.fetch = originalFetch as any;
+    global.fetch = originalFetch;
     jest.clearAllMocks();
   });
 
@@ -16,7 +16,7 @@ describe('getHealth', () => {
       ok: true,
       status: 200,
       json: async () => mockResponse,
-    } as any);
+    } as Partial<Response>);
 
     const data = await getHealth('http://example.com/health');
     expect(data).toEqual(mockResponse);
@@ -30,7 +30,7 @@ describe('getHealth', () => {
       ok: false,
       status: 500,
       json: async () => ({}),
-    } as any);
+    } as Partial<Response>);
 
     await expect(getHealth('http://example.com/health')).rejects.toThrow('HTTP 500');
   });

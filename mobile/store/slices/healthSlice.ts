@@ -6,7 +6,7 @@ export interface HealthResponse {
 
 interface HealthState {
   data: HealthResponse | null;
-  error: any | null;
+  error: unknown;
 }
 
 const initialState: HealthState = {
@@ -22,7 +22,7 @@ const healthSlice = createSlice({
       state.data = action.payload;
       state.error = null;
     },
-    setHealthError: (state, action: PayloadAction<any>) => {
+    setHealthError: (state, action: PayloadAction<unknown>) => {
       state.error = action.payload;
       state.data = null;
     },

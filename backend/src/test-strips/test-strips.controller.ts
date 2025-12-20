@@ -2,7 +2,7 @@ import { Controller, Post, Get, Param, UseInterceptors, UploadedFile, HttpExcept
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ThrottlerGuard, Throttle } from '@nestjs/throttler';
 import { UseGuards } from '@nestjs/common';
-import { TestStripsService } from './test-strips.service';
+import { TestStripsService, UploadError, UploadErrorType } from './test-strips.service';
 import * as path from 'path';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
@@ -42,6 +42,7 @@ export class TestStripsController {
     }),
   )
   async upload(@UploadedFile() file: Express.Multer.File) {
+    console.log('Received upload request');
     if (!file) {
       throw new HttpException('No image file provided', HttpStatus.BAD_REQUEST);
     }
@@ -66,19 +67,31 @@ export class TestStripsController {
 
     try {
       return await this.service.processUpload(file.path, file.filename, file.size, file.mimetype);
-    } catch (err: any) {
-      const msg = err?.message || String(err);
-      if (msg.toLowerCase().includes('qr code already exists')) {
-        // duplicate QR code
-        throw new HttpException(msg, HttpStatus.CONFLICT);
+    } catch (err: unknown) {
+      // Handle typed upload errors from service
+      console.log('Upload processing error caught in controller:', err);
+      if (err instanceof UploadError) {
+        const errorResponse = {
+          message: err.message,
+          errorType: err.errorType,
+        };
+        switch (err.errorType) {
+          case UploadErrorType.QR_CODE_DUPLICATE:
+            throw new HttpException(errorResponse, HttpStatus.CONFLICT);
+          case UploadErrorType.INVALID_IMAGE:
+          case UploadErrorType.IMAGE_DIMENSIONS_TOO_SMALL:
+          case UploadErrorType.IMAGE_DIMENSIONS_TOO_LARGE:
+            throw new HttpException(errorResponse, HttpStatus.BAD_REQUEST);
+          case UploadErrorType.THUMBNAIL_GENERATION_FAILED:
+            throw new HttpException(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+          default:
+            throw new HttpException({ message: 'Failed to process upload', errorType: null }, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
       }
-      if (msg.toLowerCase().includes('invalid image') || msg.toLowerCase().includes('dimensions')) {
-        // validation error from service
-        throw new HttpException(msg, HttpStatus.BAD_REQUEST);
-      }
-      // unexpected error
-      console.error('Upload processing error', err);
-      throw new HttpException('Failed to process upload', HttpStatus.INTERNAL_SERVER_ERROR);
+
+      // unexpected error - log and return generic message
+      console.error('Upload processing error:', err);
+      throw new HttpException({ message: 'Failed to process upload', errorType: null }, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 

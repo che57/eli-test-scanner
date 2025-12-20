@@ -15,7 +15,7 @@ describe('testStripsApi - RTK Query', () => {
       formData.append('image', new Blob(), 'test.jpg');
 
       // The query function should be callable with FormData
-      const queryResult = (uploadMutation as any).queryFn(formData);
+      const queryResult = (uploadMutation as unknown as { queryFn: (arg: FormData) => unknown }).queryFn(formData);
       expect(queryResult).toEqual({
         url: 'test-strips/upload',
         method: 'POST',
@@ -25,7 +25,7 @@ describe('testStripsApi - RTK Query', () => {
 
     it('should invalidate Submissions tag after upload', () => {
       const uploadMutation = testStripsApi.endpoints.uploadPhoto;
-      expect((uploadMutation as any).invalidatesTags).toEqual(['Submissions']);
+      expect((uploadMutation as unknown as { invalidatesTags: string[] }).invalidatesTags).toEqual(['Submissions']);
     });
   });
 
@@ -37,7 +37,7 @@ describe('testStripsApi - RTK Query', () => {
 
     it('should fetch from test-strips/list endpoint', () => {
       const getQuery = testStripsApi.endpoints.getSubmissions;
-      const queryResult = (getQuery as any).queryFn();
+      const queryResult = (getQuery as unknown as { queryFn: () => string }).queryFn();
       expect(queryResult).toBe('test-strips/list');
     });
 
@@ -53,7 +53,7 @@ describe('testStripsApi - RTK Query', () => {
         },
       ];
 
-      const transformed = (getQuery as any).transformResponse(mockResponse);
+      const transformed = (getQuery as unknown as { transformResponse: (response: unknown) => SubmissionItem[] }).transformResponse(mockResponse);
       expect(transformed).toEqual(mockResponse);
     });
 
@@ -64,13 +64,13 @@ describe('testStripsApi - RTK Query', () => {
           {
             id: '1',
             qrCode: 'ELI-2024-ABC',
-            status: 'success',
+            status: 'success' as const,
             createdAt: '2024-12-19T00:00:00Z',
           },
         ],
       };
 
-      const transformed = (getQuery as any).transformResponse(mockResponse);
+      const transformed = (getQuery as unknown as { transformResponse: (response: unknown) => SubmissionItem[] }).transformResponse(mockResponse);
       expect(Array.isArray(transformed)).toBe(true);
       expect(transformed[0].qrCode).toBe('ELI-2024-ABC');
     });
@@ -82,13 +82,13 @@ describe('testStripsApi - RTK Query', () => {
           {
             id: '1',
             qrCode: 'ELI-2024-ABC',
-            status: 'success',
+            status: 'success' as const,
             createdAt: '2024-12-19T00:00:00Z',
           },
         ],
       };
 
-      const transformed = (getQuery as any).transformResponse(mockResponse);
+      const transformed = (getQuery as unknown as { transformResponse: (response: unknown) => SubmissionItem[] }).transformResponse(mockResponse);
       expect(Array.isArray(transformed)).toBe(true);
       expect(transformed.length).toBe(1);
     });
@@ -97,13 +97,13 @@ describe('testStripsApi - RTK Query', () => {
       const getQuery = testStripsApi.endpoints.getSubmissions;
       const mockResponse = { invalid: 'data' };
 
-      const transformed = (getQuery as any).transformResponse(mockResponse);
+      const transformed = (getQuery as unknown as { transformResponse: (response: unknown) => SubmissionItem[] }).transformResponse(mockResponse);
       expect(transformed).toEqual([]);
     });
 
     it('should provide Submissions tag', () => {
       const getQuery = testStripsApi.endpoints.getSubmissions;
-      expect((getQuery as any).providesTags).toEqual(['Submissions']);
+      expect((getQuery as unknown as { providesTags: string[] }).providesTags).toEqual(['Submissions']);
     });
   });
 
@@ -115,13 +115,13 @@ describe('testStripsApi - RTK Query', () => {
 
     it('should fetch from health endpoint', () => {
       const healthQuery = testStripsApi.endpoints.checkHealth;
-      const queryResult = (healthQuery as any).queryFn();
+      const queryResult = (healthQuery as unknown as { queryFn: () => string }).queryFn();
       expect(queryResult).toBe('health');
     });
 
     it('should poll every 30 seconds', () => {
       const healthQuery = testStripsApi.endpoints.checkHealth;
-      expect((healthQuery as any).pollingInterval).toBe(30_000);
+      expect((healthQuery as unknown as { pollingInterval: number }).pollingInterval).toBe(30_000);
     });
   });
 
