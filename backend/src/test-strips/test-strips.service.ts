@@ -185,7 +185,6 @@ export class TestStripsService {
     const yearMatch = qrCode.match(/^ELI-(\d{4})/);
     if (!yearMatch) return { isExpired: false, expirationYear: null };
     const expirationYear = parseInt(yearMatch[1], 10);
-    console.log('Checking expiration for QR code', yearMatch, expirationYear);
     const currentYear = new Date().getFullYear();
     return { isExpired: expirationYear < currentYear, expirationYear };
   }
@@ -194,7 +193,6 @@ export class TestStripsService {
     const skip = (page - 1) * limit;
     const results = await this.repository.findMany({ skip, take: limit });
     const submissions = results.map((row) => {
-      console.log('Mapping submission row', row.id, row.qrCode);
       const expiration = this.checkExpiration(row.qrCode);
       return {
         id: row.id,
