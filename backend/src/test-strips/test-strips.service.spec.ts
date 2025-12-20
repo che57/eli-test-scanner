@@ -37,6 +37,7 @@ describe('TestStripsService', () => {
       }),
       findMany: jest.fn(async () => []),
       findById: jest.fn(async () => null),
+      findByQrCode: jest.fn(async () => null),
     };
 
     service = new TestStripsService(repoMock as TestStripsRepository);
@@ -47,7 +48,7 @@ describe('TestStripsService', () => {
   });
 
   test('extractQRCode returns normalized and valid=true for ELI formatted code', async () => {
-    const fakeImage: any = {
+    const fakeImage = {
       bitmap: { data: new Uint8ClampedArray([1, 2, 3, 4]), width: 200, height: 200 },
       clone() { return this; },
       resize() { return this; },
@@ -64,7 +65,7 @@ describe('TestStripsService', () => {
   });
 
   test('extractQRCode returns valid=false for non-matching code', async () => {
-    const fakeImage: any = {
+    const fakeImage = {
       bitmap: { data: new Uint8ClampedArray([1, 2, 3, 4]), width: 200, height: 200 },
       clone() { return this; },
       resize() { return this; },
@@ -81,8 +82,9 @@ describe('TestStripsService', () => {
 
   test('processUpload stores normalized QR when valid and calls repository', async () => {
     // Mock thumbnail generation image
-    const thumbImage: any = {
-      bitmap: { width: 400, height: 300 },
+    const thumbImage = {
+      bitmap: { data: new Uint8ClampedArray([1, 2, 3, 4]), width: 400, height: 300 },
+      clone() { return this; },
       resize() { return this; },
       quality() { return this; },
       writeAsync: jest.fn().mockResolvedValue(undefined),
@@ -92,7 +94,7 @@ describe('TestStripsService', () => {
     mockedJimp.read.mockResolvedValue(thumbImage);
 
     // Spy extractQRCode on the service to return a valid normalized result
-    jest.spyOn(service, 'extractQRCode' as any).mockResolvedValue({ code: 'ELI-2024-XYZ', normalized: 'ELI-2024-XYZ', valid: true, expirationYear: 2024, isExpired: true });
+    jest.spyOn(service, 'extractQRCode').mockResolvedValue({ code: 'ELI-2024-XYZ', normalized: 'ELI-2024-XYZ', valid: true, expirationYear: 2024, isExpired: true });
 
     const createSpy = repoMock.create as jest.Mock;
 
@@ -107,7 +109,7 @@ describe('TestStripsService', () => {
   });
 
   test('extractQRCode detects expired QR code (year < current year)', async () => {
-    const fakeImage: any = {
+    const fakeImage = {
       bitmap: { data: new Uint8ClampedArray([1, 2, 3, 4]), width: 200, height: 200 },
       clone() { return this; },
       resize() { return this; },
@@ -125,7 +127,7 @@ describe('TestStripsService', () => {
   test('extractQRCode detects non-expired QR code (year >= current year)', async () => {
     const currentYear = new Date().getFullYear();
     const futureYear = currentYear + 1;
-    const fakeImage: any = {
+    const fakeImage = {
       bitmap: { data: new Uint8ClampedArray([1, 2, 3, 4]), width: 200, height: 200 },
       clone() { return this; },
       resize() { return this; },
@@ -215,14 +217,17 @@ describe('TestStripsService', () => {
   test('processUpload handles missing QR code gracefully', async () => {
     jest.spyOn(fs.promises, 'mkdir' as any).mockResolvedValue(undefined as any);
 
-    const mockJimpImage: any = {
-      bitmap: { data: new Uint8ClampedArray(), width: 0, height: 0 },
+    const mockJimpImage = {
+      bitmap: { data: new Uint8ClampedArray([1, 2, 3, 4]), width: 200, height: 200 },
       clone() { return this; },
       resize() { return this; },
+      quality() { return this; },
+      writeAsync: jest.fn().mockResolvedValue(undefined),
     };
 
     mockedJimp.read.mockResolvedValue(mockJimpImage);
     mockedJsQR.mockReturnValue(null); // No QR code
+    (repoMock.findByQrCode as jest.Mock).mockResolvedValue(null);
 
     const result = await service.processUpload('/path/test.jpg', 'test.jpg', 1024);
 

@@ -4,9 +4,14 @@ export interface HealthResponse {
   status: string;
 }
 
+export interface ApiError {
+  message: string;
+  status?: number;
+}
+
 interface HealthState {
   data: HealthResponse | null;
-  error: any | null;
+  error: ApiError | null;
 }
 
 const initialState: HealthState = {

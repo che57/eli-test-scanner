@@ -23,7 +23,7 @@ export class TestStripsRepository {
     return this.repository.save(entity);
   }
 
-  async findMany(options: { skip?: number; take?: number; order?: any } = {}): Promise<TestStripSubmission[]> {
+  async findMany(options: { skip?: number; take?: number; order?: Record<string, 'ASC' | 'DESC'> } = {}): Promise<TestStripSubmission[]> {
     const skip = options.skip || 0;
     const take = options.take || 10;
     // Select only the fields needed for list responses to reduce payload

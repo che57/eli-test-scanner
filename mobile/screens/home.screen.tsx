@@ -84,7 +84,7 @@ export default function HomeScreen() {
         await uploadPhoto(item.formData).unwrap();
         await dequeueOne();
         console.log('Queued submission uploaded successfully');
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.warn('Retry failed, will try later', err);
         break;
       }
@@ -106,7 +106,7 @@ export default function HomeScreen() {
   // Helper to determine alert based on upload state
   const getUploadAlert = () => {
     if (uploadError) {
-      const errorMsg = (uploadError as any)?.message || 'Unknown error';
+      const errorMsg = uploadError instanceof Error ? uploadError.message : (typeof uploadError === 'object' && uploadError !== null && 'message' in uploadError ? String(uploadError.message) : 'Unknown error');
       if (errorMsg.toLowerCase().includes('qr code already exists')) {
         return { title: '⚠️ QR Code Duplicate', message: 'This QR code has already been uploaded. Please try a different test strip.' };
       }
@@ -160,8 +160,9 @@ export default function HomeScreen() {
       if (photo && photo.path) {
         setPhotoUri(`file://${photo.path}`);
       }
-    } catch (err: any) {
-      Alert.alert('Camera error', err?.message || 'Failed to take photo');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to take photo';
+      Alert.alert('Camera error', message);
     } finally {
       setCameraOpen(false);
     }
@@ -192,13 +193,13 @@ export default function HomeScreen() {
         uri: compressedUri,
         name: compressedName,
         type: 'image/jpeg',
-      } as any);
+      });
 
       try {
         await uploadPhoto(formData).unwrap();
-      } catch (err: any) {
+      } catch (err: unknown) {
         // Check if error is due to connection/backend unavailability
-        const errorMsg = (err as any)?.message || String(err);
+        const errorMsg = err instanceof Error ? err.message : String(err);
         if (
           errorMsg.toLowerCase().includes('network') ||
           errorMsg.toLowerCase().includes('timeout') ||
@@ -213,8 +214,9 @@ export default function HomeScreen() {
         // Other errors (validation, duplicate, etc) - rethrow
         throw err;
       }
-    } catch (err: any) {
-      Alert.alert('Compression error', err?.message || 'Failed to prepare image');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to prepare image';
+      Alert.alert('Compression error', message);
     }
   }, [photoUri, uploadPhoto, enqueueSubmission, healthData, healthError]);
 

@@ -10,26 +10,26 @@ jest.mock('@/components/hello-wave', () => ({
 
 jest.mock('@/components/parallax-scroll-view', () => ({
   __esModule: true,
-  default: jest.fn(({ children }: any) => children),
+  default: jest.fn(({ children }: { children: React.ReactNode }) => children),
 }));
 
 jest.mock('@/components/themed-text', () => ({
-  ThemedText: jest.fn(({ children }: any) => children),
+  ThemedText: jest.fn(({ children }: { children: React.ReactNode }) => children),
 }));
 
 jest.mock('@/components/themed-view', () => ({
-  ThemedView: jest.fn(({ children }: any) => children),
+  ThemedView: jest.fn(({ children }: { children: React.ReactNode }) => children),
 }));
 
 // Mock react-native
 jest.mock('react-native', () => ({
   Platform: {
-    OS: 'ios',
-    select: jest.fn(({ ios }: any) => ios),
+    OS: 'ios' as const,
+    select: jest.fn(({ ios }: { ios: string }) => ios),
   },
   Button: jest.fn(() => null),
   Image: jest.fn(() => null),
-  StyleSheet: { create: jest.fn((x) => x) },
+  StyleSheet: { create: jest.fn((x: unknown) => x) },
   View: jest.fn(() => null),
   Alert: { alert: jest.fn() },
   Modal: jest.fn(() => null),
@@ -50,8 +50,8 @@ jest.mock('@testing-library/react-native', () => ({
   render: jest.fn(),
   screen: {},
   fireEvent: { press: jest.fn() },
-  waitFor: jest.fn((fn) => Promise.resolve(fn())),
-  act: (fn: any) => fn(),
+  waitFor: jest.fn((fn: () => void) => Promise.resolve(fn())),
+  act: (fn: () => void) => fn(),
 }));
 
 jest.mock('expo-image-manipulator', () => ({
@@ -82,13 +82,18 @@ import HomeScreen from '../home.screen';
 import { testStripsApi } from '../../store/api/testStripsApi';
 import healthReducer, { setHealthData } from '../../store/slices/healthSlice';
 
-const createMockStore = (preloadedState?: any) => {
+interface MockStoreState {
+  [testStripsApi.reducerPath]: ReturnType<typeof testStripsApi.reducer>;
+  health: ReturnType<typeof healthReducer>;
+}
+
+const createMockStore = (preloadedState?: Partial<MockStoreState>) => {
   return configureStore({
     reducer: {
       [testStripsApi.reducerPath]: testStripsApi.reducer,
       health: healthReducer,
-    } as any,
-    middleware: (getDefaultMiddleware: any) =>
+    },
+    middleware: (getDefaultMiddleware) =>
       getDefaultMiddleware().concat(testStripsApi.middleware),
     preloadedState,
   });
@@ -160,7 +165,7 @@ describe('HomeScreen Upload Flow Integration', () => {
   it('integrates redux store with api', () => {
     const store = createMockStore();
     const state = store.getState();
-    
+
     expect(state[testStripsApi.reducerPath]).toBeDefined();
     expect(state.health).toBeDefined();
   });

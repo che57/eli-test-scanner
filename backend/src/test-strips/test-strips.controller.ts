@@ -66,8 +66,8 @@ export class TestStripsController {
 
     try {
       return await this.service.processUpload(file.path, file.filename, file.size, file.mimetype);
-    } catch (err: any) {
-      const msg = err?.message || String(err);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
       if (msg.toLowerCase().includes('qr code already exists')) {
         // duplicate QR code
         throw new HttpException(msg, HttpStatus.CONFLICT);

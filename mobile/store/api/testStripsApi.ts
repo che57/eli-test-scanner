@@ -24,6 +24,10 @@ export interface SubmissionItem {
   errorMessage?: string;
 }
 
+export interface GetSubmissionsResponse {
+  submissions: SubmissionItem[];
+}
+
 const baseQuery = fetchBaseQuery({
   baseUrl: Platform.OS === 'android' ? BASE_BACKEND_URL_ANDROID : BASE_BACKEND_URL,
 });
@@ -54,11 +58,11 @@ export const testStripsApi = createApi({
         const limit = params?.limit || 10;
         return `test-strips/list?page=${page}&limit=${limit}`;
       },
-      transformResponse: (response: any) => {
+      transformResponse: (response: SubmissionItem[] | GetSubmissionsResponse | { items: SubmissionItem[] }): SubmissionItem[] => {
         // support a few shapes the backend might return
         if (Array.isArray(response)) return response;
-        if (Array.isArray(response.submissions)) return response.submissions;
-        if (Array.isArray(response.items)) return response.items;
+        if ('submissions' in response && Array.isArray(response.submissions)) return response.submissions;
+        if ('items' in response && Array.isArray(response.items)) return response.items;
         return [];
       },
       providesTags: ['Submissions'],

@@ -85,9 +85,10 @@ export class TestStripsService {
       }
 
       return { code: raw, normalized, valid, expirationYear, isExpired };
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
       console.error('extractQRCode error for', imagePath, err);
-      return { code: null, normalized: null, valid: false, expirationYear: null, isExpired: false, error: err?.message || String(err) };
+      return { code: null, normalized: null, valid: false, expirationYear: null, isExpired: false, error: message };
     }
   }
 
@@ -108,9 +109,10 @@ export class TestStripsService {
       if (image.bitmap.width > 10000 || image.bitmap.height > 10000) {
         throw new Error('Image dimensions too large (maximum 10000x10000 pixels)');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
       console.error('Image validation failed for', originalPath, err);
-      throw new Error(`Invalid image file: ${err?.message || String(err)}`);
+      throw new Error(`Invalid image file: ${message}`);
     }
 
     // Sanitize filename and generate unique thumbnail filename to avoid traversal/collisions
@@ -127,7 +129,8 @@ export class TestStripsService {
     try {
       image.resize(200, 200).quality(80);
       await image.writeAsync(thumbnailPath);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
       console.error('Failed to generate thumbnail for', originalPath, err);
       // continue — thumbnail failure shouldn't block processing of QR
     }
